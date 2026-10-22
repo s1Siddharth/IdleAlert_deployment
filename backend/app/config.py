@@ -23,10 +23,22 @@ MODELS_DIR = BASE_DIR / "models"
 for d in [IMAGE_UPLOAD_DIR, VIDEO_UPLOAD_DIR, ANNOTATED_VIDEO_DIR, MODELS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 
-DATABASE_URL = f"sqlite:///{BASE_DIR / 'smart_classroom.db'}"
+DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite:///{BASE_DIR / 'smart_classroom.db'}")
 
 # Security
-SECRET_KEY = os.environ.get("SECRET_KEY", "smart_classroom_secret_key_2026")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").strip().lower()
+SECRET_KEY = os.environ.get("SECRET_KEY", "").strip()
+if ENVIRONMENT == "production" and len(SECRET_KEY) < 32:
+    raise RuntimeError("SECRET_KEY must be set to at least 32 characters in production.")
+if not SECRET_KEY:
+    SECRET_KEY = "development-only-change-me"
+
+_default_cors_origins = "http://localhost:5173,http://127.0.0.1:5173"
+CORS_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.environ.get("CORS_ORIGINS", _default_cors_origins).split(",")
+    if origin.strip()
+]
 
 # YOLO Configuration
 _s_model = BASE_DIR / "yolov8s.pt"

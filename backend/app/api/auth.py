@@ -92,22 +92,13 @@ def login(req: UserLogin, db: Session = Depends(get_db)):
     }
 
 @router.get("/me")
-def get_current_user(authorization: Optional[str] = Header(None), db: Session = Depends(get_db)):
+def get_current_user(authorization: Optional[str] = Header(None)):
     if authorization:
         token = authorization.replace("Bearer ", "").strip()
         user_info = _active_sessions.get(token)
         if user_info:
             return user_info
 
-    # Fallback: check latest user in DB
-    last_user = db.query(User).order_by(User.id.desc()).first()
-    if last_user:
-        return {
-            "id": last_user.id,
-            "username": last_user.username,
-            "full_name": last_user.full_name,
-            "phone": last_user.phone
-        }
     raise HTTPException(status_code=401, detail="Invalid or expired session.")
 
 @router.put("/user/phone")
@@ -126,22 +117,10 @@ def update_user_phone(req: UpdatePhoneRequest, authorization: Optional[str] = He
                 user_info["phone"] = clean_phone
 
     if not user:
-        user = db.query(User).order_by(User.id.desc()).first()
+        raise HTTPException(status_code=401, detail="Valid login session required.")
 
-    if not user:
-        # Automatically create system administrator user with this phone
-        user = User(
-            full_name="Classroom Administrator",
-            username="admin",
-            password_hash=hash_password("admin123"),
-            phone=clean_phone
-        )
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-    else:
-        user.phone = clean_phone
-        db.commit()
+    user.phone = clean_phone
+    db.commit()
 
     # Store in active sessions map
     _active_sessions["default_admin"] = {

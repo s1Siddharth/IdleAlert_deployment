@@ -218,3 +218,63 @@ npm run dev
 
 ---
 
+## 🚢 Production Deployment
+
+The supported deployment path is Docker Compose: Nginx serves the built React
+application and proxies `/api` and `/uploads` to FastAPI. The backend keeps its
+database and generated media in named Docker volumes so container restarts do
+not remove application data.
+
+### Requirements
+
+* Docker Engine 24+ with Docker Compose v2
+* A trained model file in `backend/models/` (for example `custom_classroom.pt`)
+* A production domain with HTTPS terminated by a reverse proxy or load balancer
+
+### Deploy
+
+```bash
+cd IdleAlert_deployment
+copy backend\.env.example backend\.env
+```
+
+Edit `backend/.env` before starting:
+
+```env
+ENVIRONMENT=production
+SECRET_KEY=<random-value-at-least-32-characters>
+TEXTBEE_API_KEY=<optional>
+TEXTBEE_DEVICE_ID=<optional>
+SMS_RATE_LIMIT_SECONDS=300
+```
+
+Set the public frontend origin in the shell environment (PowerShell example):
+
+```powershell
+$env:CORS_ORIGINS="https://idlealert.example.com"
+docker compose up -d --build
+curl http://localhost:8080/api/health
+```
+
+Open `http://localhost:8080` locally, or put the HTTPS reverse proxy in front
+of port `8080`. Do not expose port `8000` publicly. Back up the `idlealert-data`
+and `idlealert-uploads` volumes, and monitor `/api/health` and container logs.
+
+For multi-instance production, use PostgreSQL by installing the PostgreSQL
+driver in the backend image and setting `DATABASE_URL` to a
+`postgresql+psycopg://...` URL. SQLite is suitable for a single backend
+instance only.
+
+### Release checklist
+
+1. Pin and scan dependency versions; store `.env` only in the deployment secret
+   manager.
+2. Verify the model file loads through `/api/model-diagnostics`.
+3. Test registration, login, image upload, video upload, alert acknowledgement,
+   and SMS status in a staging deployment.
+4. Configure HTTPS, backups, log retention, resource limits, and an uptime
+   alert on `/api/health`.
+5. Roll out with `docker compose up -d --build`, then perform a smoke test and
+   keep the previous image available for rollback.
+
+---

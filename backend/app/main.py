@@ -4,14 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from app.database import engine, Base
 from app.models import User, Alert, MonitoringLog, MonitoringSession
-from app.config import UPLOAD_DIR
+from app.config import CORS_ORIGINS, ENVIRONMENT, UPLOAD_DIR
 from app.ai.detector import detector
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables (empty database — zero seeded data)
     Base.metadata.create_all(bind=engine)
-    print("[Startup] Database tables created (empty — zero fake/seeded data)")
+    print("[Startup] Database tables ready")
+    print(f"[Startup] Environment: {ENVIRONMENT}")
     print(f"[Startup] Detector capability: {detector.get_model_info()}")
     from app.services.sms_service import sms_service
     sms_service.log_startup_diagnostics()
@@ -23,18 +23,9 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS - explicitly allow local frontend origins and pattern matching for all local dev ports
 app.add_middleware(
     CORSMiddleware,
-    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
-        "http://localhost:8000",
-        "http://127.0.0.1:8000",
-    ],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

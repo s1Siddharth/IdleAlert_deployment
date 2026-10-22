@@ -1,0 +1,7 @@
+.env
+__pycache__
+*.pyc
+smart_classroom.db
+uploads
+models
+.git
